@@ -1,10 +1,91 @@
 % !TeX root = ../sustechthesis-example.tex
 
-\chapter{English and $\text{lower-case}$ Example}
+\chapter{已完成的研究工作与进度安排}
 
-If your supervisor is a foreign resident, or if your supervisor or defense committee specifically allows writing in English, the thesis may be written in English as the primary language. Please check with your supervisor or department secretary to confirm if you can write in English.
+\section{已完成工作}
 
-\section{Reference guide}
+\subsection{混合整数规划问题的元启发式算法的自动设计研究}
 
-Writing in English still requires the Chinese reference standard GB/T 7714-2015.
+在本研究中，我们已完成对元启发式算法的自动化设计，并通过实验验证了该方法的有效性。相关成果已以导师为第一作者、本人为第二作者发表在《IEEE Transactions on Evolutionary Computation》上，论文题目为《Automated Metaheuristic Algorithm Design With Autoregressive Learning》。本研究提出的基于自回归学习（Autoregressive Learning）的自动设计方法，能够有效地设计与调优元启发式算法，使其适应不同的优化问题。通过对多种优化任务的实验评估，验证了该方法在多种问题上相较于传统启发式算法的优越性。此外，提出的持续学习机制用于保存以往的设计经验，实验结果表明，该方法相较于从零开始设计算法更加高效。总体上，我们已实现了研究设定的主要目标。
+
+\subsection{混合整数规划问题的分支定界算法中节点选择策略自动设计研究}  
+本研究围绕分支定界算法中节点选择策略的自动化设计展开，提出基于因果建模的节点选择方法，旨在通过端到端学习机制替代传统启发式规则，提升算法在复杂MILP问题中的求解效率与鲁棒性。相关成果已整理完成，并以本人一作、导师通讯投稿至《INFORMS Journal on Computing》，论文题目为《Learn to Select Node in Branch-and-Bound with Causality Modeling》。  本研究通过对比学习显式建模节点间的最优性传递性，使模型能够识别包含最优解的节点路径，而非依赖传统方法中的浅层统计相关性。  本方法在节点选择质量与求解效率上均优于现有深度学习方法（如SVM、RankNet、L2C）及启发式策略（如Estimate）；在FCMCNF和MAXSAT两类问题中，所提方法的求解时间与分支定界树规模均显著优于SCIP求解器。
+
+该研究通过将因果推理机制引入分支定界算法，为MILP求解提供了兼具效率、泛化性与可解释性的新范式，相关成果已进入同行评审阶段，后续将进一步完善实验分析与理论验证。  
+
+
+\subsection{混合整数规划问题的分支定界算法的基础模型研究}
+
+本研究已完成基础模型的设计与数据准备工作，具体进展如下：  
+
+1. Decision Transformer模型构建：
+
+（1） 完成基于Transformer架构的决策模型搭建，包括共享编码器、任务特定输出头（节点选择头与变量选择头）及动态任务权重调整模块。
+
+（2）实现因果掩码机制与位置编码策略，确保模型学习时序一致的搜索路径。  
+
+（3）采用DeepSpeed框架进行分布式训练，支持长序列显存优化。 
+
+2.数据收集与预处理：
+
+（1）从SCIP求解日志中提取GISP、FCMCNF、MAXSAT等10,000个MILP实例的完整搜索轨迹，涵盖状态、节点、奖励、分支变量等关键信息。
+
+（2）编写序列生成相关代码： 使用图神经网络与MLP嵌入模块，将原始问题特征、节点特征及分支操作转化为混合类型序列（见表~\ref{tab:token_types}与式~\ref{eq:bnb_seq}）。
+
+在模型的初步实验中，我们验证了Decision Transformer的训练流程与基础性能。在预训练阶段，模型已成功学习到节点选择与变量选择的基本决策模式，初步验证了端到端建模的可行性。
+
+
+
+\section{进度安排}
+
+未来的研究工作将围绕以下两个核心阶段展开：
+
+\subsection{全面预训练实验}  
+本阶段将系统开展决策Transformer模型的预训练工作，重点包括：  
+\begin{itemize}  
+    \item \textbf{大规模预训练验证}：  
+    在GISP、FCMCNF、MAXSAT等10,000个MILP实例上进行端到端预训练，评估模型在节点数、求解时间等指标上的表现。  
+    \item \textbf{超参数敏感性分析}：  
+    系统测试学习率、批量大小、等超参数对微调结果的影响，建立参数调优的指导原则。在FCMCNF、MAXSAT、GISP等基准测试集上进行消融实验，量化各模块（如因果掩码、位置编码）对性能的贡献。  
+\end{itemize}  
+
+\subsection{微调实验设计与优化}  
+在预训练模型基础上，针对具体MIP问题进行微调实验，重点包括：  
+\begin{itemize}  
+    \item \textbf{微调策略探索}：  
+    对比不同微调方案：① 冻结预训练编码器，仅训练任务头网络；② 逐步解冻模型层以保留通用特征；③ 全量微调以适应特定问题结构。  
+    设计动态任务权重调整机制（$\alpha, \beta$），根据验证集表现自动优化多任务协同效果。  
+
+    \item \textbf{跨领域迁移验证}：  
+     在MIPLIB、TSP等异构问题上测试微调后模型的泛化能力，分析其在未参与训练问题类型中的表现。  
+    对比SCIP验证模型在求解效率与质量上的优势。  
+\end{itemize}  
+
+通过上述两个阶段的系统实验，本研究将完成从预训练到微调的全流程优化，为混合整数规划问题的自动化求解提供可复用、高性能的基础模型范式。  
+
+具体任务的时间安排如下：
+
+\begin{table}
+  \centering
+  \caption{研究进度时间安排表}
+  \begin{tabular}{p{3cm} p{5cm} p{5cm}}
+    \toprule
+    时间（年-月）          & 主要任务          & 备注 \\
+    \midrule
+    2024-10              & 开题报告准备与开题答辩          & 与导师讨论，确定方向与方法 \\
+    2024-11 \textasciitilde 2025-04     & 论文相关文献阅读，进行数据收集 & 调研图数据结构的数据增强方法,收集增强数据 \\
+    2025-05 \textasciitilde 2025-08    & 实验方案完善，核心实验开展          & 搭建对比学习框架,验证不同的数据增强方法 \\
+    2025-06               & 中期报告准备与中期考核            & 汇报进展，分析当前成果与问题 \\
+    2025-10 \textasciitilde 2025-12    & 深入实验及数据分析               & 在下游任务上微调，实验不同的微调策略 \\
+    2026-01 \textasciitilde 2026-03    & 论文撰写初稿                   & 梳理研究成果与实验数据，写初稿 \\
+    2026-04               & 论文修改与完善                  & 与导师讨论，进行内容调整 \\
+    2026-05              & 论文查重与格式调整                & 确保符合学校的格式与查重要求 \\
+    2026-06              & 学位论文定稿与提交                & 提交最终版本，准备答辩 \\
+    2026-07              & 答辩准备与正式答辩                & 准备答辩PPT和答辩内容 \\
+    2026-07             & 完成学位申请与相关材料提交          & 最终提交学校要求的所有材料 \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:time-schedule}
+\end{table}
+
 

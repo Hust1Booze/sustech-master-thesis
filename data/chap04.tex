@@ -1,69 +1,43 @@
 % !TeX root = ../sustechthesis-example.tex
 
-\chapter{引用文献的标注}
+\chapter{预期达到的目标}
 
-模板支持 BibTeX 和 BibLaTeX 两种方式处理参考文献。
-下文主要介绍 BibTeX 配合 \pkg{natbib} 宏包的主要使用方法。
+本研究旨在为混合整数规划的元启发式算法和分支定界算法的自动设计提供高效智能的解决方法，期望通过自动化设计与深度学习相结合的方式，不仅提升算法的求解能力，还能显著缩短设计时间并积累经验知识，具体目标如下：
+
+\section{混合整数规划问题的元启发式算法自动设计目标}
+
+针对元启发式的自动设计研究中，主要目标包括：
+
+（1）提高求解效果与效率：希望通过自动化设计的元启发式算法，在处理特定问题时能够在求解时间和求解效果上超越经典的元启发式和启发式算法。具体来说，这不仅限于在求解精度上取得优势，更包括在计算效率上实现突破。由于传统的元启发式算法往往需要针对不同问题进行手动调整，自动化设计能够提供更具适应性的方案，减少人为干预带来的不确定性。
+
+（2）算法适应性与泛化能力：预期该研究所提出的自动化设计框架，能够通过对不同问题的学习，生成具有较强泛化能力的元启发式算法。这意味着，自动化设计的元启发式算法不仅能够解决特定问题，还可以在较广泛的优化问题上表现出色，具备跨任务迁移的能力。
+
+（3）存储和重用设计经验：目标之一是能够通过训练网络模型，将以往的算法设计经验存储到模型的参数中，形成一种持续学习的机制。相较于传统的从零开始设计新算法的方式，这种方法能够在处理新问题时，通过调用已有的经验，加快设计过程，提高设计的效率，新问题的算法设计将具有“站在巨人肩膀上”的优势，在更短的时间内找到优质的解。
+
+（4）自动调优能力：除了设计元启发式算法本身，研究的另一个目标是使自动化系统具备自动调优的能力，能够根据不同问题的特点自动调整参数，从而提升算法在不同环境下的表现。这将进一步减少人工干预的必要性，使算法能够在更复杂的任务上表现出自适应能力。
 
 
-\section{顺序编码制}
+\section{混合整数规划问题的分支定界算法节点选择策略自动设计研究目标}
 
-\thusetup{
-  cite-style = super,
-}
-% \citestyle{super} % 全局上标数字模式
-% \bibliographystyle{sustechthesis-numeric}
+针对分支定界算法中节点选择策略的自动化设计研究，主要目标包括：
 
-在顺序编码制下，默认的 \cs{cite} 命令同 \cs{citep} 一样，即序号置于方括号中，引文页码会放在括号外。统一处引用的连续序号会自动用短横线连接。如多次引用同一文献，可能需要标注页码，例如：引用第二页\cite[2]{zhangkun1994}，引用第五页\cite[5]{zhangkun1994}。
+（1）提升分支定界算法的整体求解效率:
+通过构建端到端的因果推理框架，设计基于对比学习的节点选择策略，使模型能够从候选节点中动态识别最可能包含最优解的路径。该方法通过显式建模节点间的最优性传递性，优先扩展与祖先节点具有高因果相似性的节点，从而缩短搜索路径并减少无效分支。相较于传统不可解释的启发式方法（如Estimate或SCIP默认配置），该策略通过结构化特征提取和相似度计算，显著提升搜索收敛效率。
 
-{
-  \small
-  \noindent
-    \begin{tabular}{l@{\quad$\Rightarrow$\quad}l}
-      \verb|\cite{zhangkun1994}|               & \cite{zhangkun1994}   {\kaishu 不带页码的上标引用}            \\
-      \verb|\citet{zhangkun1994}|              & \citet{zhangkun1994}              \\
-      \verb|\citep{zhangkun1994}|              & \citep{zhangkun1994}              \\
-      \verb|\cite[42]{zhangkun1994}|           & \cite[42]{zhangkun1994} {\kaishu 手动带页码的上标引用}          \\
-      \verb|\cite{zhangkun1994,zhukezhen1973}| & \cite{zhangkun1994,zhukezhen1973}  {\kaishu 一次多篇文献的上标引用}  \\
-    \end{tabular}
-}
+（2）提升节点选择的鲁棒性与泛化能力：  
+通过因果建模方法，使模型能够识别节点是否包含最优解的因果关系，而非依赖统计相关性。预期该策略能有效规避传统方法中偏好浅层节点或下界较低节点的伪相关问题，在问题分布变化时仍保持稳定性能。
 
-\section{著者-出版年制}
 
-著者-出版年制下的 \cs{cite} 跟 \cs{citet} 一样。
 
-\thusetup{
-  cite-style = author-year,
-}
-{
-  \small
-  \noindent
-  \begin{tabular}{l@{\quad$\Rightarrow$\quad}l}
-    \verb|\cite{zhangkun1994}|                & \cite{zhangkun1994}                \\
-    \verb|\citet{zhangkun1994}|               & \citet{zhangkun1994}               \\
-    \verb|\citep{zhangkun1994}|               & \citep{zhangkun1994}               \\
-    \verb|\cite[42]{zhangkun1994}|            & \cite[42]{zhangkun1994}            \\
-    \verb|\citep{zhangkun1994,zhukezhen1973}| & \citep{zhangkun1994,zhukezhen1973} \\
-  \end{tabular}
-}
-\subsection{其他引用注意事项}
 
-\thusetup{
-  cite-style = super,
-}
-注意，引文参考文献的每条都要在正文中标注
-\cite{zhangkun1994,zhukezhen1973,dupont1974bone,zhengkaiqing1987,%
-  jiangxizhou1980,jianduju1994,merkt1995rotational,mellinger1996laser,%
-  bixon1996dynamics,mahui1995,carlson1981two,taylor1983scanning,%
-  taylor1981study,shimizu1983laser,atkinson1982experimental,%
-  kusch1975perturbations,guangxi1993,huosini1989guwu,wangfuzhi1865songlun,%
-  zhaoyaodong1998xinshidai,biaozhunhua2002tushu,chubanzhuanye2004,%
-  who1970factors,peebles2001probability,baishunong1998zhiwu,%
-  weinstein1974pathogenic,hanjiren1985lun,dizhi1936dizhi,%
-  tushuguan1957tushuguanxue,aaas1883science,fugang2000fengsha,%
-  xiaoyu2001chubanye,oclc2000about,scitor2000project%
-}。
+\section{混合整数规划问题的分支定界算法基础模型研究目标}
 
-引用测试：2个连续引用\cite{zhangkun1994,zhukezhen1973}，2个间隔\cite{zhangkun1994,dupont1974bone}，3个连续\cite{zhangkun1994,zhukezhen1973,dupont1974bone}。
+本研究旨在通过构建基于决策Transformer的端到端模型，完全替代传统分支定界求解器SCIP，实现对混合整数规划问题的自主决策求解。具体目标如下：
+ 
+（1）通过大规模MILP实例的预训练，使DT模型具备与SCIP相当的求解能力，模型无需依赖SCIP的启发式规则，通过混合类型序列学习直接掌握分支定界树的全局决策模式。 模型通过在GISP、FCMCNF、MAXSAT等MIP问题上的预训练后，能够泛化至未参与训练的问题类型（MIPLIB、TSP），其求解时间与节点数接近SCIP的默认配置。  
+ 
+（2）在具体类别的MILP问题上进行微调后，模型需超越SCIP的性能表现：模型通过在特定问题类型的子集上微调，动态调整多任务权重（$\alpha, \beta$），微调后的模型在测试集上实现比SCIP更快的求解时间和更小的搜索树规模。
 
-如参考文献中需要使用上标或者下标，使用数学环境书写 \verb|$\mathrm{Ba}_{3}\mathrm{CoSb}_{2}\mathrm{O}_{9}$|，例如该文献\cite{kamiya2018nature}。根据 \pkg{gbt7714} 规定著者姓名自动转为大写。西文的题名、期刊名的大小写不自动处理，需要自行处理以符合信息资源本身文种的习惯用法。
+通过上述目标的实现，本研究期望构建一个通用的基础模型，既能匹配SCIP的工业级性能，又具备通过微调超越SCIP的潜力，为MILP求解提供新的范式。
+
+

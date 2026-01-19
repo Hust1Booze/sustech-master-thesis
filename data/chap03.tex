@@ -1,172 +1,486 @@
 % !TeX root = ../sustechthesis-example.tex
 
-\chapter{数学符号和公式}
+\chapter{研究内容}
 
-\section{数学符号}
+本章针对混合整数规划问题的两类求解算法的自动设计方法展开研究。
 
-模板中使用 \pkg{unicode-math} 宏包来配置数学符号，
+\section{混合整数规划问题的元启发式算法自动设计研究}
 
-研究生《写作指南》要求量及其单位所使用的符号应符合国家标准《国际单位制及其应用》（GB 3100—1993）、《有关量、单位和符号的一般原则》（GB/T 3101—1993）的规定，但是与 \TeX{} 默认的美国数学学会（AMS）的符号习惯有所区别。
+如第 2.2.2 小节所述，MIP的元启发式算法研究多集中于在固定的算法框架下对某个组件或算法参数的配置进行优化。即便是在自动算法设计领域，当前的方法仍以特定的算法框架为基础，缺乏对元启发式算法自身结构的深入研究。此外，现有的算法设计方法通常从零开始，未能充分利用以往的设计经验。针对这些不足，本研究提出基于自回归学习的元启发式算法自动设计方法，旨在改进算法结构的灵活性和设计效率。
 
-英文论文的数学符号使用 \TeX{} 默认的样式。论文以中文为主要撰写语言按照国标建议的配置数学字体格式：
+\subsection{研究方案}
+
+受到自然语言处理和大语言模型的启发，本研究将元启发式算法的设计转化为序列生成任务，通过序列来表示不同结构的算法。为解决这一任务，提出了一种基于自回归神经网络的生成模型，同时通过将以往的设计经验嵌入到神经网络中，避免了从零开始训练带来的低效率，从而提升了设计效率和性能。
+
+
+\subsubsection{算法的序列表征}
+
+本研究提出一种新的元启发式算法的序列表征方法，形式如下：
+\begin{equation}\label{eq_seq2}
+    \begin{aligned}
+        A=(S_1,&S_2,\cdots), \\
+        {\rm with} \ S_{l}=(a_l^{{\rm comp}},a_l^{{\rm param}_{1}},&\cdots,a_l^{{\rm param}_{C}},a_l^{{\rm ptr}},a_l^{{\rm cond}}), \\
+        l=1,&2,\cdots,
+    \end{aligned}    
+\end{equation}
+
+\noindent 其中 $A$ 是一种序列形式的算法，即算法序列, $S_l$ 是第$l$个片段, 每一个 $a_l$ 都是片段的一个词元（Token), $C$ 表示组件 $a_l^{\mathrm{comp}}$的第$c$个参数。
+
+这种表征方式不仅包含算法的组件和超参数，还包含了指针 $a_l^{\mathrm{ptr}}$ 和条件 $a_L^{\mathrm{cond}}$，每一个组件后必须跟随它的超参数以及一个指针和一个条件，共同组成一个片段，多个片段共同组成一个算法序列。
+
+在一个片段中，指针$a_l^{\mathrm{ptr}}$决定了组件$a_l^{\mathrm{comp}}$运行之后算法的执行流程，定义了三种指针（\texttt{forward}, \texttt{iterate}和 \texttt{fork}）和两种条件（次数条件和事件条件）。\texttt{forward}指针的作用是在当前片段运行完以后算法走向下一个片段，\texttt{iterate}根据$a_l^{\mathrm{cond}}$使当前组件迭代运行，\texttt{fork}会根据$a_l^{\mathrm{cond}}$来指向下一个运行的组件。次数条件和事件条件分别代表组件循环的次数和某个特定事件发生之后跳出，比如说解到达某个阈值。事件条件需要事先定义并且和问题实例相关，在本研究中不涉及事件条件。通过上述的序列表征方法，可以灵活表示序列、循环、分支等执行流程，而无需特定模版，从而表达各种算法结构。图3-1展示了三种算法实例通过序列表征之后的形式。
+
+\begin{figure}
+	\centering
+	\subcaptionbox{Tabu search}{\includegraphics[width=0.45\columnwidth]{sequence_example1.pdf}}
+        \subcaptionbox{Iterative local search}{\includegraphics[width=0.45\columnwidth]{sequence_example2.pdf}}
+        \subcaptionbox{Genetic algorithm}{\includegraphics[width=0.45\columnwidth]{sequence_example3.pdf}}
+	\caption{三种算法实例的序列表征}
+	\label{fig_seq}
+\end{figure}
+
+
+\subsubsection{自回归生成模型}
+
+为了解决算法的序列生成任务，本研究设计了一种自回归式的生成式神经网络模型，其网络架构如图所示。
+
+\begin{figure}
+      \centering
+      \includegraphics[width=0.9\linewidth]{architecture.pdf}
+      \caption{自回归式生成模型网络架构}
+      \label{fig:}
+\end{figure}
+
+该模型主要分为四个部分：问题表征（Problem Embedding）、序列表征（Sequence Embedding）、Transformer和掩码采样（Masked Sampling）。
 
 \begin{enumerate}
-  \item 大写希腊字母默认为斜体，如
-    \begin{equation*}
-      \Gamma \Delta \Theta \Lambda \Xi \Pi \Sigma \Upsilon \Phi \Psi \Omega.
-    \end{equation*}
-    注意有限增量符号 $\increment$ 固定使用正体，模板提供了 \cs{increment} 命令。
-  \item 小于等于号和大于等于号使用倾斜的字形 $\le$、$\ge$。
-  \item 积分号使用正体，比如 $\int$、$\oint$。
-  \item 行间公式积分号的上下限位于积分号的上下两端，比如
-    \begin{equation*}
-      \int_a^b f(x) \dif x.
-    \end{equation*}
-    行内公式为了版面的美观，统一居右侧，如 $\int_a^b f(x) \dif x$ 。
-  \item
-    偏微分符号 $\partial$ 使用正体。
-  \item
-    省略号 \cs{dots} 按照中文的习惯固定居中，比如
-    \begin{equation*}
-      1, 2, \dots, n \quad 1 + 2 + \dots + n.
-    \end{equation*}
-  \item
-    实部 $\Re$ 和虚部 $\Im$ 的字体使用罗马体。
-\end{enumerate}
-
-以上数学符号样式的差异可以在模板中统一设置。
-另外国标还有一些与 AMS 不同的符号使用习惯，需要用户在写作时进行处理：
-\begin{enumerate}
-  \item 数学常数和特殊函数名用正体，如
-    \begin{equation*}
-      \uppi = 3.14\dots; \quad
-      \symup{i}^2 = -1; \quad
-      \symup{e} = \lim_{n \to \infty} \left( 1 + \frac{1}{n} \right)^n.
-    \end{equation*}
-  \item 微分号使用正体，比如 $\dif y / \dif x$。
-  \item 向量、矩阵和张量用粗斜体（\cs{mathbfit}），如 $\mathbfit{x}$、$\mathbfit{\Sigma}$、$\mathbfit{T}$。
-  \item 自然对数用 $\ln x$ 不用 $\log x$。
+  \item 问题表征：将非结构化的问题转换为向量表示。该模块的输入是目标问题的适应度景观特征（Landscape Features），在设计单个问题时，可以省略此模块。
+  \item 序列表征：使用One-Hot方法将词元转化为向量，其中每一个词元代表式（3-1）中的一个 $a$ 。
+  \item Transformer模块：根据输入的特征（目标问题和已生成的部分算法），输出下一个 $a$ 的分布，表示生成特定词元的概率。
+  \item 掩码采样模块：根据已经生成的算法对Transformer的输出进行掩码，屏蔽掉不合理的词元，以确保最终生成的序列为合法的算法序列。
 \end{enumerate}
 
 
+\subsubsection{网络训练方法}
 
-关于数学符号更多的用法，参考
-\href{http://mirrors.ctan.org/macros/latex/contrib/unicode-math/unicode-math.pdf}{\pkg{unicode-math}}
-宏包的使用说明，
-全部数学符号命的令参考
-\href{http://mirrors.ctan.org/macros/latex/contrib/unicode-math/unimath-symbols.pdf}{\pkg{unimath-symbols}}，也可以参考 Stack Overflow 上的答案 \href{https://tex.stackexchange.com/questions/58098/what-are-all-the-font-styles-i-can-use-in-math-mode}{What are all the font styles I can use in math mode?}。
-
-关于量和单位推荐使用
-\href{http://mirrors.ctan.org/macros/latex/contrib/siunitx/siunitx.pdf}{\pkg{siunitx}}
-宏包，
-可以方便地处理希腊字母以及数字与单位之间的空白，
-比如：
-\SI{6.4e6}{m}，
-\SI{9}{\micro\meter}，
-\si{kg.m.s^{-1}}，
-\SIrange{10}{20}{\degreeCelsius}。
-
-
-
-\section{数学公式}
-
-数学公式可以使用 \env{equation} 和 \env{equation*} 环境。
-注意数学公式的引用应前后带括号，建议使用 \cs{eqref} 命令，比如式\eqref{eq:example}。
-\begin{equation}
-  \frac{1}{2 \uppi \symup{i}} \int_\gamma f = \sum_{k=1}^m n(\gamma; a_k) \mathscr{R}(f; a_k)
-  \label{eq:example}
-\end{equation}
-注意公式编号的引用应含有圆括号，可以使用 \cs{eqref} 命令。
-
-晶体衍射基础的著名公式──布拉格方程：
-\begin{equation}
-  2d\sin\theta=k\lambda, \quad k=1,2,3\ldots
+算法设计的目标是为了最大化算法在目标问题上的性能期望，将其建模为序列生成任务后表示为：
+\begin{equation}\label{eq_seq}
+    \begin{aligned}
+        \mathop{\max}\limits_{\Theta}p_{\Theta}(A)= & \sum_{n=1}^{N}\log p_{\Theta}(a_n|a_{1:(n-1)}), \\
+        {\rm s.t.} \ A=\mathop{\arg\max}\limits_{A\in\mathcal{A}}\mathbb{E}_{\mathcal{I}} & \Big[\mathbb{E}_{\mathcal{G}}\big[g(A|i)\big]\Big], \ i\in\mathcal{I}, g\in\mathcal{G},
+    \end{aligned}
 \end{equation}
 
-\noindent%
-\begin{minipage}{\textwidth}
-  \begin{tabularx}{\textwidth}{@{}l@{~}l@{~——~}X@{}}
-    式中 & $d$ & 晶面间距（nm）；\\
-    & $\theta$ & 入射线与晶面的夹角（rad）；\\
-    & $\lambda$ & X射线波长（nm）。\\
-    & $k$ & 公式中第一次出现的物理量代号应给予注释，注释的转行应与破折号“——”后第一个字对齐。
-  \end{tabularx}
-\end{minipage}
+\noindent 其中$\Theta$是网络模型的参数， $A=(a_{1},a_{2},\cdots,a_N)$ 是设计出算法的序列表达， $a_n, n=1,2,\cdots,N$ 对应于（3-1）中的词元; 每个词元生成的概率 $p$ 取决于之前的所有生成词元和模型的参数$\Theta$，约束条件中 $g$ 是算法 $A$在问题实例$i\in\mathcal{I}$上运行获得的性能。
 
-多行公式尽可能在“=”处对齐，推荐使用 \env{align} 环境。
-\begin{align}
-  a & = b + c + d + e \\
-    & = f + g
-\end{align}
-
-此外需要注意：公式需紧挨段前文字，不可空行，不然会导致公式独立成段，如下\textcolor{red}{\textbf{错误}}效果。公式前文字公式前文字公式前文字公式前文字公式前文字。
-
-\begin{equation}
-  \frac{1}{2 \uppi \symup{i}} \int_\gamma f = \sum_{k=1}^m n(\gamma; a_k) \mathscr{R}(f; a_k)
+使用强化学习中的近端策略优化（PPO）\cite{schulman2017proximal}方法更新模型参数$\Theta$，公式如下：
+\begin{equation}\label{eq_train2}
+    \begin{aligned}
+        J(\Theta)=&\mathbb{E}_{k}\Big[\mathop{\min}\big(h_k(\Theta)\hat{R_k},{\rm clip}(h_k(\Theta),1-\epsilon,1+\epsilon)\hat{R_k}\big)\Big], \\
+                  &{\rm with} \ h_k(\Theta)=\frac{\prod_{n=1}^{N}p_{\Theta}(a_n^k|a_{1:(n-1)}^k)}{\prod_{n=1}^{N}p_{\Theta_{old}}(a_n^k|a_{1:(n-1)}^k)},
+    \end{aligned}
 \end{equation}
 
-公式后文字公式后文字公式后文字公式后文字公式后文字公式后文字公式后文字公式后文字公式后文字公式后文字公式后文字。\textbf{正确}效果，如下：
-% <- 如需代码上空行需要在前面加上百分号·%
-\begin{equation}
-  \frac{1}{2 \uppi \symup{i}} \int_\gamma f = \sum_{k=1}^m n(\gamma; a_k) \mathscr{R}(f; a_k)
+\noindent 式中$k$是训练批次（Batch）的索引，$h_k(\Theta)$ 是重要性采样的权重，$\Theta_{old}$为一轮模型参数更新之前的参数，$a_n^k$ 是第$k$个算法中的第 $n$个词元，$R=\mathbb{E}_{\mathcal{I}}\big[\mathbb{E}_{\mathcal{G}}[g(A|i)]\big]$, $\hat{R_k}=R_k-b$, 其中$R_k$ 是第 $k$个算法的期望Performance, $b$ 是以往奖励的移动加权平均，用来减小梯度估计的方差，$\epsilon$ 是裁切阈值。
+
+
+\subsubsection{持续学习方法}
+与以往从零开始的设计方法不同，本研究方法将以往的设计经验存储到神经网络中，以便快速适应和学习新问题。基于以上目标，本研究设计了两种方法：（1）目标问题的表征方法，使模型可以识别相似的问题并应用以往的设计经验。（2）存储以往设计经验并对于新问题泛化的一种方法。
+
+对于第一点，使用适应度景观特征来表示目标问题， 对于连续问题和离散问题分别使用Sobol\cite{sobol1967distribution}方法和随机游走的采样方法在问题空间上进行采样并计算采样解的适应度（Fitness）。根据采样的结果计算优化景观特征。对于第二点，使用可塑权重巩固\cite{kirkpatrick2017overcoming}（Elastic Weight Consolidation）来积累以往设计经验，可塑权重巩固通过计算模型中每一个参数对以往任务的重要性并在学习新任务时减少重要参数更新的方式来积累学习经验，其中减少重要参数更新的方式为增加一项更新重要参数的惩罚项，具体如下：
+\begin{equation} \label{eq_train3}
+    J^{'}(\Theta)=J_{t}(\Theta)+\sum_{r=1}^{R}\frac{\lambda}{2}F_{r}\|\Theta_r-\Theta_{r,t-1}^{*}\|_2^2,
 \end{equation}
-公式后文字公式后文字公式后文字公式后文字公式后文字公式后文字公式后。
 
-\section{数学定理}
+\noindent 其中$\Theta$ 为式（3-2）中的模型参数，$F_r$是费舍尔信息矩阵，用来估计第$r$个参数对以往任务的重要性，$\Theta_{r,t-1}^{*}$是指第$t-1$个任务学习结束后的$r$个参数，$\lambda$是超参数，用来调整惩罚项的权重。
 
-定理环境的格式可以使用 \pkg{amsthm} 或者 \pkg{ntheorem} 宏包配置。
-用户在导言区载入这两者之一后，模板会自动配置 \env{thoerem}、\env{proof} 等环境。
+\subsection{实验设计}
 
-\begin{theorem}[Lindeberg--Lévy 中心极限定理]
-  设随机变量 $X_1, X_2, \dots, X_n$ 独立同分布， 且具有期望 $\mu$ 和有限的方差 $\sigma^2 \ne 0$，
-  记 $\bar{X}_n = \frac{1}{n} \sum_{i+1}^n X_i$，则
-  \begin{equation}
-    \lim_{n \to \infty} P \left(\frac{\sqrt{n} \left( \bar{X}_n - \mu \right)}{\sigma} \le z \right) = \Phi(z),
-  \end{equation}
-  其中 $\Phi(z)$ 是标准正态分布的分布函数。
-\end{theorem}
-\begin{proof}
-  Trivial.
-\end{proof}
+为了验证提出的自动设计方法的有效性，进行以下对比实验：
 
-同时模板还提供了 \env{assumption}、\env{definition}、\env{proposition}、
-\env{lemma}、\env{theorem}、\env{axiom}、\env{corollary}、\env{exercise}、
-\env{example}、\env{remar}、\env{problem}、\env{conjecture} 这些相关的环境。
+对比算法采用Irace算法自动调参后的元启发式算法：ILS，SA，GA，TS以及求解器CPLEX。
 
-\section{数学字体}
+目标问题为：PBO问题集\cite{DoerrYHWSB20}、两个实际问题：Beamforming问题和Black Start问题，以及MIPLIB2017 Benchmark\cite{gleixner2021miplib}。
 
-按照《撰写规范》表达式字体可以采用 Times New Roman、Xits Math 或 Cambria Math（MS Word默认字体）。Cambria Math 缺少部分样式，例如：积分符号设定为 upright 也看起来没有变化。
+本研究提出的深度学习的方法将在低维问题上进行训练，并在高维实例上进行验证和测试。
 
-TeX Gyre Termes Math 字体（Times New Roman的TeX克隆版）样例：
-\makeatletter
-\thu@load@math@font@times
-\begin{equation}
-  \frac{1}{2 \uppi \symup{i}} \int_\gamma f = \sum_{k=1}^m n(\gamma; a_k) \mathscr{R}(f; a_k)
+\subsection{实验结果及分析}
+本研究提出的ALDes框架在多个复杂优化问题集上的实验验证了其优越性。实验结果如表\ref{tab_pbo}、\ref{tab_beam}、\ref{tab_restoration} 所示。在PBO问题集的23个问题中，ALDes设计的启发式算法在19个问题上显著优于传统方法（ILS、SA、TS、GA），其余4个问题与最优性能接近。在两个实际问题ALDes设计的启发式算法均取得最好的效果。
+
+相较于传统的启发式算法，ALDes的优势在于其自适应性与鲁棒性。通过强化学习的方式，ALDes能够自动调整搜索策略以适应不同问题结构，而传统启发式方法即使通过算法调参之后 在不同类型的问题上缺少泛化性。
+
+
+\begin{table}[t]
+\centering
+\caption{各方法在PBO问题集上运行5次的平均性能比较（均值$\pm$标准差），最佳性能通过加黑标注（基于Wilcoxon符号检验，5\%显著性水平）。}
+\label{tab_pbo}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lrrrrr}
+\toprule
+    & \multicolumn{1}{c}{ILS}  & \multicolumn{1}{c}{SA}   & \multicolumn{1}{c}{TS}   & \multicolumn{1}{c}{GA}   & \multicolumn{1}{c}{$Alg^*$}\\
+\midrule
+F1  & 609.40    $\pm$ 2.87E+00 & 388.30    $\pm$ 2.12E+01 & 398.10    $\pm$ 1.46E+02 & 452.63    $\pm$ 7.96E+00 & \textbf{625.00}    $\pm$ 0.00E+00 \\
+F2  & 93.67     $\pm$ 8.97E+01 & 14.77     $\pm$ 1.04E+01 & \textbf{166.17}    $\pm$ 1.39E+02 & 54.40     $\pm$ 3.14E+00 & 158.67    $\pm$ 2.29E+01 \\
+F3  & 192550.47 $\pm$ 1.13E+05 & 126377.90 $\pm$ 2.71E+06 & 141253.13 $\pm$ 1.58E+07 & 146910.90 $\pm$ 1.27E+06 & \textbf{195625.00} $\pm$ 0.00E+00 \\
+F4  & \textbf{312.00}    $\pm$ 0.00E+00 & 215.63    $\pm$ 1.30E+01 & 241.83    $\pm$ 6.89E+01 & 250.83    $\pm$ 3.80E+00 & \textbf{312.00}    $\pm$ 0.00E+00 \\
+F5  & 555.37    $\pm$ 1.96E+00 & 354.90    $\pm$ 1.35E+01 & 362.87    $\pm$ 1.37E+02 & 413.83    $\pm$ 1.17E+01 & \textbf{562.00}    $\pm$ 0.00E+00 \\
+F6  & 203.80    $\pm$ 5.34E+00 & 155.50    $\pm$ 4.25E+00 & 183.17    $\pm$ 2.31E+01 & 170.33    $\pm$ 2.30E+00 & \textbf{207.90}    $\pm$ 9.31E-02 \\
+F7  & 504.17    $\pm$ 3.35E+01 & 394.57    $\pm$ 1.58E+01 & 495.17    $\pm$ 4.61E+01 & 386.30    $\pm$ 2.01E+01 & \textbf{510.57}    $\pm$ 2.29E+01 \\
+F8  & 303.40    $\pm$ 1.28E+00 & 195.67    $\pm$ 5.09E+00 & 157.83    $\pm$ 6.02E+01 & 227.47    $\pm$ 1.77E+00 & \textbf{314.00}    $\pm$ 0.00E+00 \\
+F9  & 591.40    $\pm$ 1.26E+02 & 385.80    $\pm$ 2.38E+01 & 311.47    $\pm$ 1.50E+02 & 452.23    $\pm$ 8.81E+00 & \textbf{625.00}    $\pm$ 0.00E+00 \\
+F10 & 367.00    $\pm$ 3.72E+01 & 378.17    $\pm$ 1.85E+01 & 315.67    $\pm$ 1.89E+02 & 450.87    $\pm$ 1.06E+01 & \textbf{598.50}    $\pm$ 5.58E+01 \\
+F11 & 92.67     $\pm$ 3.05E+02 & 14.67     $\pm$ 9.62E+00 & \textbf{170.73 }   $\pm$ 1.25E+02 & 54.20     $\pm$ 6.58E+00 & 161.87    $\pm$ 5.10E+01 \\
+F12 & 93.90     $\pm$ 1.20E+02 & 14.43     $\pm$ 1.24E+01 & \textbf{166.43}    $\pm$ 1.50E+02 & 55.10     $\pm$ 6.30E+00 & 164.20    $\pm$ 3.95E+01 \\
+F13 & 23.57     $\pm$ 9.61E+01 & 17.93     $\pm$ 7.33E+00 & 6.63      $\pm$ 3.00E+01 & 44.07     $\pm$ 3.58E+00 & \textbf{89.63}     $\pm$ 9.07E+00 \\
+F14 & 17.30     $\pm$ 2.04E+01 & 11.50     $\pm$ 7.98E+00 & 4.27      $\pm$ 1.35E+01 & 44.43     $\pm$ 4.74E+01 & \textbf{47.57}     $\pm$ 4.19E+01 \\
+F15 & 12.17     $\pm$ 1.11E+01 & 8.00      $\pm$ 1.87E+00 & 5.30      $\pm$ 1.58E+01 & 28.30     $\pm$ 2.29E+00 & \textbf{35.20}     $\pm$ 1.08E+01 \\
+F16 & 18.27     $\pm$ 3.99E+01 & 13.70     $\pm$ 1.53E+01 & 7.73      $\pm$ 4.26E+01 & 52.73     $\pm$ 6.55E+00 & \textbf{67.83}     $\pm$ 1.08E+01 \\
+F17 & 16.00     $\pm$ 7.93E+00 & 12.17     $\pm$ 1.25E+01 & 5.83      $\pm$ 1.08E+01 & 42.27     $\pm$ 4.30E+01 & \textbf{44.27}     $\pm$ 1.44E+02 \\
+F18 & 3.73      $\pm$ 1.30E-02 & 2.13      $\pm$ 3.26E-04 & 3.76      $\pm$ 2.00E-02 & 1.51      $\pm$ 1.32E-03 & \textbf{4.28}     $\pm$ 1.43E-02 \\
+F19 & 542.60    $\pm$ 6.96E+01 & 389.87    $\pm$ 3.09E+01 & 477.60    $\pm$ 2.22E+02 & 401.13    $\pm$ 8.81E+00 & \textbf{593.00}    $\pm$ 2.43E+01 \\
+F20 & 1052.33   $\pm$ 1.64E+02 & 723.53    $\pm$ 4.79E+01 & 865.27    $\pm$ 2.87E+02 & 762.00    $\pm$ 5.85E+01 & \textbf{1110.47}   $\pm$ 5.18E+02 \\
+F21 & 1581.93   $\pm$ 5.57E+02 & 1068.20   $\pm$ 1.29E+02 & 1303.73   $\pm$ 4.57E+02 & 1129.07   $\pm$ 6.17E+01 & \textbf{1724.13}   $\pm$ 4.42E+02 \\
+F22 & 247.50    $\pm$ 1.78E+01 & -16541.93 $\pm$ 1.65E+07 & -34324.87 $\pm$ 1.29E+08 & -55636.10 $\pm$ 4.60E+06 & \textbf{273.67}    $\pm$ 2.40E+01 \\
+F23 & -216.90   $\pm$ 4.33E+03 & -17518.27 $\pm$ 4.30E+05 & -18829.20 $\pm$ 8.02E+05 & -13670.17 $\pm$ 6.85E+04 & \textbf{23.47}     $\pm$ 2.57E-01 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{table*}[t]
+\centering
+\caption{各方法在Beamforming问题不同实例上运行5次的平均性能比较（均值$\pm$标准差），最佳性能通过加黑标注（基于Wilcoxon符号检验，5\%显著性水平）。}
+\label{tab_beam}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lccccc}
+\toprule
+                       % & \multicolumn{5}{c}{Number of RIS elements in the test instances}\\
+                       & 120 & 160 & 280 & 320 & 400\\
+\midrule
+Random                 & 0.0442$\pm$7.94E-04 & 0.0425$\pm$6.56E-04 & 0.0402$\pm$8.30E-04 & 0.0390$\pm$6.67E-04 & 0.0375$\pm$1.88E-04 \\
+Sequential             & 0.0382$\pm$6.19E-04 & 0.0387$\pm$6.75E-04 & 0.0374$\pm$4.17E-04 & 0.0369$\pm$4.38E-04 & 0.0354$\pm$8.27E-04 \\
+ILS                    & 0.0333$\pm$3.74E-04 & 0.0314$\pm$2.49E-04 & 0.0285$\pm$1.19E-04 & 0.0279$\pm$1.82E-04 & 0.0278$\pm$1.15E-04 \\
+SA                     & 0.0392$\pm$8.13E-04 & 0.0381$\pm$4.55E-04 & 0.0357$\pm$1.89E-04 & 0.0349$\pm$3.52E-04 & 0.0346$\pm$6.17E-04 \\
+GA                     & 0.0359$\pm$7.24E-04 & 0.0334$\pm$1.13E-04 & 0.0302$\pm$2.21E-04 & 0.0316$\pm$1.67E-04 & 0.0309$\pm$5.67E-04 \\
+$Alg_{\rm beam}^*$ & \textbf{0.0331$\pm$4.03E-07} & \textbf{0.0312$\pm$1.08E-07} & \textbf{0.0281$\pm$1.23E-07} & \textbf{0.0272$\pm$2.39E-08} & \textbf{0.0259$\pm$4.41E-08} \\
+\bottomrule
+\end{tabular}}
+\end{table*}
+
+\clearpage
+
+\begin{table}[t]
+\centering
+\caption{各方法在Black Start问题上运行5次的平均性能比较（均值$\pm$标准差），最佳性能通过加黑标注（基于Wilcoxon符号检验，5\%显著性水平）。}
+\label{tab_restoration}
+\begin{tabular}{p{4cm}p{4cm}}
+\toprule
+Algorithms                & 恢复时间      \\ 
+\midrule
+CPLEX                     & 3697.82$\pm$0.00E+00   \\
+ILS                       & 3268.51$\pm$1.43E+03   \\
+SA                        & 3379.51$\pm$3.59E+03   \\
+GA                        & 3105.23$\pm$1.07E+02   \\
+$Alg_{\rm restor}^*$        & \textbf{3016.52$\pm$2.24E+01} \\     
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\section{混合整数规划问题的分支定界算法节点选择策略自动设计研究}
+
+如第 2.2.1 小节所述，分支定界算法的效率高度依赖于节点选择策略的质量。节点选择直接决定分支定界树的生长顺序，是影响算法收敛速度的关键因素之一。现有方法多依赖人工设计的启发式规则，或基于模仿学习与强化学习的统计建模，这些方法通常捕捉的是节点特征与“质量标签”之间的统计相关性。然而，这类建模易受伪相关（如偏好深层节点或下界较低节点）影响，导致在面对问题分布变化时表现不稳定。
+
+为应对上述问题，本研究提出一种基于因果建模的节点选择策略。该方法的核心思想是：节点被选择的因果依据应为其是否包含问题的最优解。通过对比学习建模节点是否属于最优路径，从而获得更具鲁棒性和泛化能力的节点选择策略。
+
+
+\subsection{研究方案}
+
+\subsubsection{因果建模思想与最优性传递性}
+
+本文将节点选择任务转化为“是否包含最优解 $\rightarrow$ 是否应被选择”的因果推理问题。节点是否包含最优解被视为关键因果变量。由于在分支定界树中，若某节点包含最优解，则其所有祖先节点也必然包含该解，这种结构性属性可称为“最优性传递性”（Optimality Transitivity），可作为训练过程中的可靠监督信号。
+
+在实际求解中，最优解信息不可获得。为利用上述因果信号，本研究将其转化为节点间的结构性相似性：包含最优解的节点在结构、真实下界等方面应具有一致性。我们通过神经网络提取节点的抽象特征并计算其相似度，从而估计节点包含最优解的可能性。
+
+\begin{figure}
+\centering
+\includegraphics[width=0.3\linewidth]{figures/ancestor.jpg}
+\caption{最优性传递性示意图（红色边缘节点为包含最优解的节点）}
+\label{fig:ancestor}
+\end{figure}
+
+\subsubsection{节点表征方法}
+
+本研究采用与 Gasse 等人\cite{gasse2019exact}相同的节点表示方式，将分支定界树中的每个节点视为一个子问题，其由变量、约束及其分边的邻接矩阵唯一确定。节点被建模为一个二部图结构（Bipartite Graph），如图 \ref{fig:bipartite} 所示，左侧为变量节点，右侧为约束节点。边表示变量是否参与约束，边权对应于约束矩阵中的系数。
+
+变量节点包含的信息包括：变量类型（整数/连续）、目标函数系数、当前取值范围等；约束节点包含的信息包括：约束类型（$\leq$、$=$、$\geq$）、右端常数等。
+
+\begin{figure}
+\centering
+\includegraphics[width=0.8\linewidth]{figures/bipartite.jpg}
+\caption{二部图节点表征方法示意图}
+\label{fig:bipartite}
+\end{figure}
+
+具体嵌入过程如下：首先使用三个多层感知器（MLP）对边、变量节点、约束节点的原始特征进行非线性映射：
+\begin{equation}\label{eq:mlp}
+\mathbf{E} = \text{MLP}_E (E), \quad
+\mathbf{V} = \text{MLP}_V (V), \quad
+\mathbf{C} = \text{MLP}_C (C),
 \end{equation}
-\makeatother
+$\mathbf{E} \in \mathbb{R}^{|C| \times |V|}$ 表示连接矩阵，$\mathbf{V} \in \mathbb{R}^{|V| \times d}$、$\mathbf{C} \in \mathbb{R}^{|C| \times d}$ 分别为变量节点和约束节点的嵌入表示。
 
-Cambria Math 字体样例：
-\makeatletter
-\thu@load@math@font@cambria
-\begin{equation}
-  \frac{1}{2 \uppi \symup{i}} \int_\gamma f = \sum_{k=1}^m n(\gamma; a_k) \mathscr{R}(f; a_k)
+接着，使用图卷积网络（GCN）在二部图上传播信息，更新变量和约束的嵌入表示：
+\begin{equation}\label{eq:gcn_c}
+\mathbf{C}' = \sigma\left(\mathbf{W_1} \mathbf{C} + \mathbf{W_2} \sum_{p \in \mathcal{N}(q)} \mathbf{E}_{q,p} \cdot \mathbf{V}_p \right)
 \end{equation}
-\makeatother
+\begin{equation}\label{eq:gcn_v}
+\mathbf{V}' = \sigma\left(\mathbf{W_1} \mathbf{V} + \mathbf{W_2} \sum_{q \in \mathcal{N}(p)} \mathbf{E}_{q,p} \cdot \mathbf{C}_q \right)
+\end{equation}
+$\mathbf{W_1}, \mathbf{W_2} \in \mathbb{R}^{d \times d}$ 为可学习参数，$\sigma$ 表示激活函数，$\mathcal{N}(q)$ 和 $\mathcal{N}(p)$ 分别表示与约束 $q$ 和变量 $p$ 相连的节点集合。
 
-Xits Math 字体样例：
-\makeatletter
-\thu@load@math@font@xits
+最后，对更新后的变量节点嵌入进行池化操作，作为该节点的整体表示：
 \begin{equation}
-  \frac{1}{2 \uppi \symup{i}} \int_\gamma f = \sum_{k=1}^m n(\gamma; a_k) \mathscr{R}(f; a_k)
+\mathbf{v}_{\text{avg}} = \frac{1}{|\mathcal{V}|} \sum_{p=1}^{|\mathcal{V}|} \mathbf{V}'_p,
 \end{equation}
-\thu@load@math@font@cambria
-\makeatother
+得到最终的节点表示 \( \mathbf{v}_{\text{avg}} \in \mathbb{R}^{d} \)，其中约束信息已通过 GCN 融入到变量表示中，因此无需额外处理。
 
-STIX Math 字体样例：
-\makeatletter
-\thu@load@math@font@stix
-\begin{equation}
-  \frac{1}{2 \uppi \symup{i}} \int_\gamma f = \sum_{k=1}^m n(\gamma; a_k) \mathscr{R}(f; a_k)
+\subsubsection{对比学习训练方法}
+本研究采用InfoNCE损失函数 \citep{oord2018representation} 训练模型，其核心目标是通过对比学习帮助模型更好地区分包含最优解的节点。具体而言，对比学习中的正样本对由包含最优解的节点与其祖先节点构成，负样本对则为不包含最优解的节点与其祖先节点。通过拉近正样本之间的距离，模型能够学习到包含最优解的节点之间的相似性，从而捕捉最优性传递的结构性信号。
+
+首先使用余弦相似度定义节点之间的相似度：
+\begin{equation} \label{eq:similarity}
+H(v_a, v_b) = \text{cos\_sim}(\phi_\theta(G_a), \phi_\theta(G_b)) =  \frac{ \mathbf{v}_{\text{avg},a}^\top \cdot \mathbf{v}_{\text{avg},b} }{ \| \mathbf{v}_{\text{avg},a} \| \| \mathbf{v}_{\text{avg},b} \| },
 \end{equation}
-\makeatother
+\( v_a \) 和 \( v_b \) 是分支定界树中的两个节点, $G_a$ 和 $G_b$ 分别是节点对应的表征, \(\phi_\theta\)表示神经网络，\( \mathbf{v}_{\text{avg},a} \) 和 \( \mathbf{v}_{\text{avg},b} \) 是通过神经网络输出的表征。
+
+随后使用 InfoNCE 损失函数来优化函数 \ref{eq:similarity} ：
+\begin{equation}\label{eq:infoNCE}
+\mathcal{L}(\theta) = \frac{-1}{|\mathcal{D}|} \sum_{(v^+,v^-,v^{pa}) \in \mathcal{D}}
+\log \frac{\exp \left(H(v^{pa},v^+) / \tau \right)}
+{\exp \left(H(v^{pa}, v^+) / \tau \right) + \exp \left(H(v^{pa}, v^-) / \tau \right)},
+\end{equation}
+其中\(\tau\)是温度超参数。该损失鼓励模型对位于最优路径上的节点对给出更高的相似度，从而引导模型学习捕捉包含最优解的可能性。这使得所学习的嵌入能够与节点选择背后的因果结构保持一致。
+
+
+\subsubsection{推理方式}
+在推理阶段，学习到的相似度函数$H(v_a, v_b)$ 将代替分支定中的节点选择方法。具体实现上替代了 SCIP 中默认的 \texttt{NODECOMP} 函数，用于比较两个候选节点。由于在每一步选择中对所有候选节点进行排序的计算代价较高，SCIP 采用优先队列来维护候选节点。当新节点生成时，\texttt{NODECOMP} 的两两比较结果决定其在队列中的插入位置。随后，\texttt{NODESELECT} 函数根据队列选择下一个要扩展的节点。
+
+\texttt{NODECOMP} 函数被重新定义如下：
+\begin{equation}
+\texttt{NODECOMP}(v_a, v_b, v^{\text{pa}}) =
+\begin{cases}
+-1 & \text{if } H(v_a, v^{\text{pa}}) > H(v_b, v^{\text{pa}}); \\
+1 & \text{if } H(v_b, v^{\text{pa}}) > H(v_a, v^{\text{pa}}); \\
+0 & \text{otherwise},
+\end{cases}
+\end{equation}
+\(v_a\) 和 \(v_b\) 是分支定界树中的两个候选节点, \(v^{\text{pa}}\) 是他们的共同祖先节点. 函数返回值与SCIP约定相同，$1$ 表示 $v_a$ 节点更好，$-1$ 表示 $v_b$ 节点更好, $0$ 表示对于两个节点没有偏好。
+
+\subsection{实验设计}
+为验证所提出方法的有效性与泛化能力，设计如下实验方案：
+\begin{itemize}
+\item \textbf{测试问题}：选取三类具有代表性的布尔MILP问题，包括：
+\begin{itemize}
+    \item Fixed charge multicommodity network flow (FCMCNF) \cite{hewitt2010combining} 
+    \item Maximum satisfiability (MAXSAT) \cite{bejar2009generating}    
+    \item Generalized independent set (GISP) \cite{chmiela2021learning}
+\end{itemize}
+
+\item \textbf{数据划分}：每类问题构造等规模的训练集、验证集和测试集(Test)，另构造问题规模更大的 Transfer 测试集，用于评估模型在未见过的问题结构上的泛化能力。
+\item \textbf{对比方法}：具备先验最优解信息的方法（Oracle）、启发式方法（Estimate）、求解器（SCIP），深度学习方法（SVM、RankNet、L2C）与本研究提出的因果建模方法（CausalM）；
+\item \textbf{评估指标}：
+\begin{itemize}
+\item 平均求解时间（Time)
+\item 最终分支定界树的节点平均数目（Nodes）
+\item 在问题集上达到最短求解时间的实例数量（Wins）
+\end{itemize}
+\end{itemize}
+
+
+\subsection{实验结果及分析}
+
+\begin{table}[t]
+\caption{各方法在 Test 集上的表现（加粗表示非 Oracle 中最优结果）。}
+\label{tab:results1}
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{l ccc ccc ccc}
+\toprule
+\multirow{2}{*}{Methods} & \multicolumn{3}{c}{FCMCNF} & \multicolumn{3}{c}{MAXSAT} & \multicolumn{3}{c}{GISP} \\
+& Time (s) & Nodes & Wins & Time (s) & Nodes & Wins & Time (s) & Nodes & Wins \\
+\midrule
+Oracle & 3.38 ± 1.42 & 14.99 ± 4.13 & - & 5.28 ± 1.72 & 102.16 ± 2.48 & - & 3.68 ± 1.25 & 98.00 ± 3.29 & - \\
+Estimate & 3.60 ± 1.48 & 21.40 ± 5.32 & 8 & 6.87 ± 1.69 & 176.58 ± 2.33 & 3 & 4.02 ± 1.25 & 218.06 ± 2.47 &  6\\
+SCIP & 4.04 ± 1.44 & 40.74 ± 4.57 & 11 & 7.99 ± 1.48 & 147.09 ± 1.96 & 2 & \textbf{3.82 ± 1.19} & 184.27 ± 1.96 & \textbf{23}\\
+SVM & 3.49 ± 1.43 & 19.98 ± 5.05 & 7 & 6.23 ± 1.74 & 150.13 ± 2.60 & 3 & 3.99 ± 1.25 & \textbf{180.58 ± 2.78} & 2 \\
+RankNet & 3.65 ± 1.48 & 20.96 ± 5.22 & 2 & 6.26 ± 1.75 & 142.13 ± 2.64 & 1 & 4.11 ± 1.28 & 203.49 ± 2.66 & 0 \\
+L2C & 3.65 ± 1.50 & 21.24 ± 5.47 & 1 & 6.20 ± 1.90 & 138.03 ± 2.79 & 4 & 4.04 ± 1.27 & 184.31 ± 2.77 & 1 \\
+CausalM & \textbf{3.43 ± 1.49} & \textbf{19.25 ± 5.07} & \textbf{21} & \textbf{5.28 ± 1.78} & \textbf{105.68 ± 2.50} & \textbf{37} & 3.82 ± 1.25 & 181.69 ± 2.77 & 18 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+表 \ref{tab:results1} 显示，CausalM 在大多数测试任务中取得最佳性能，显著优于传统学习方法（SVM、RankNet、L2C）。其中在 FCMCNF 和 MAXSAT 上，CausalM 同时在时间和节点数两个指标上领先，在 GISP 上也达到了与 SCIP 相当的时间表现，并显著减少了节点数。这验证了因果建模策略不仅提升求解效率，也提高了节点选择质量。
+
+
+\begin{table}[t]
+\caption{各方法在 Transfer 集上的表现（加粗表示非 Oracle 中最优结果）。}
+\label{tab:results3}
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{l ccc ccc ccc}
+\toprule
+\multirow{2}{*}{Methods} & \multicolumn{3}{c}{FCMCNF} & \multicolumn{3}{c}{MAXSAT} & \multicolumn{3}{c}{GISP} \\
+ & Time(s) & Nodes & Wins & Time(s) & Nodes & Wins & Time(s) & Nodes & Wins \\
+\midrule
+Oracle & 16.13 ± 1.72 & 74.59 ± 4.46 & - & 7.40 ± 1.49 & 160.33 ± 2.00 & - & 18.21 ± 1.53 & 1062.20 ± 1.81 & - \\
+Estimate & 19.14 ± 1.93 & 122.37 ± 5.14 & 8 & 9.97 ± 1.55 & 247.01 ± 1.84 & 0 & 20.26 ± 1.68 & 1434.95 ± 1.84 & 1 \\
+SCIP & 21.28 ± 1.84 & 178.45 ± 4.30 & 8 & 10.75 ± 1.34 & 170.92 ± 1.66 & 1 & \textbf{15.64 ± 1.48} & 1533.48 ± 1.85 & \textbf{37} \\
+SVM & 18.30 ± 1.84 & 132.77 ± 4.73 & 12 & 8.80 ± 1.60 & 225.32 ± 2.06 & 2 & 18.53 ± 1.51 & 1221.79 ± 1.69 & 4 \\
+RankNet & 19.76 ± 2.00 & \textbf{112.60 ± 5.50} & 3 & 9.50 ± 1.57 & 238.33 ± 2.11 & 1 & 18.89 ± 1.52 & 1215.05 ± 1.73 & 0 \\
+L2C & 19.91 ± 1.90 & 120.17 ± 4.94 & 0 & 9.31 ± 1.70 & 233.10 ± 2.23 & 2 & 18.80 ± 1.52 & 1196.42 ± 1.75 & 0 \\
+CausalM & \textbf{18.19 ± 1.84} & 114.16 ± 4.57 & \textbf{19} & \textbf{7.04 ± 1.49} & \textbf{155.93 ± 2.02} & \textbf{44} & 17.31 ± 1.51 & \textbf{1194.70 ± 1.72} & 8 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+如表 \ref{tab:results3} 所示，CausalM 在 Transfer 集上同样展现出良好的泛化能力。在 MAXSAT 问题上获得最高的 44 个 Wins，在 FCMCNF 上也取得 19 个 Wins，显著超过其他方法。在 GISP 问题中，虽然求解时间略逊于 SCIP，但节点数最低，表明所提出方法在节点选择质量上优于传统策略。
+
+综合 Test 与 Transfer 结果，CausalM 在多种问题类型和规模下均表现出稳定优势，验证了因果建模在复杂决策问题中的有效性与鲁棒性。
+
+
+% \section{混合整数规划问题的基础模型研究}
+
+% 自从Gasse\cite{gasse2019exact} 提出使用图卷积网络（Graph Convolutional Network，GCN）提取B\&B树的节点特征以来，深度学习在变量选择或节点选择方面的研究大多采用这一模型来进行特征提取。通常，GCN会作为特征提取器，随后通过一个头部网络输出具体的任务结果。在整个学习过程中，GCN的参数规模较大，并且在前向和反向传播中占用了大部分计算资源和时间。因此，本章节研究旨在设计一种预训练方法，用于学习B\&B树中节点的表征，并在后续的下游任务中进行微调。通过该方法，期望能够在减少计算开销的同时，快速适应下游任务的需求。
+
+% \subsection{预训练方法设计}
+
+% 在图像领域，预训练是一种常见且有效的技术，通过预训练模型可以显著加速针对下游任务的训练过程并提升模型性能。预训练通常在如 ImageNet\cite{deng2009imagenet} 之类的大规模通用数据集上进行，帮助模型学习基础特征。训练得到的深度神经网络可用于特定任务，通过微调（Fine-Tuning）进一步提高性能。该方法的优势在于可以利用在大型数据集上学到的特征，减少对特定任务数据的需求，并显著缩短训练时间。
+
+% 在图像处理中，卷积神经网络（Convolutional Neural Network，CNN）用于提取图像特征；而在 B\&B 树中，图卷积网络则用于提取节点的结构特征。因此，图像领域的预训练方法应同样适用于 B\&B 树节点的表征。基于图像领域对比学习（一种常用的预训练方法）中常见的框架：SimCLR\cite{chen2020simple}、MoCo\cite{he2020momentum}，本研究针对 B\&B 树的节点特征设计了相应的预训练策略，具体方法如下：
+
+% \subsubsection{正负样本设计}
+% 对比学习中正负样本的设计和数据增广的方式直接影响最终模型的效果，不同于图像领域常用的数据增广方法（旋转，裁切，高斯噪声，褪色）等，B\&B树中的节点以图的数据结构形式呈现，常用的基于图的增强方法会破坏节点的语义特征（约束条件，解的最优值，变量系数等）。本研究利用SCIP的预处理的方法来化简化B\&B树的根节点，SCIP的预处理用于通过删除冗余约束等无关信息来减少模型的规模，并利用整数性信息来加强线性规划的松弛。使用预处理后的节点作为正样本，因为预处理并不改变问题的最优解和定义域。训练过程中，同一批次中的其他样本则作为负样本。
+
+% \subsubsection{预训练损失函数}
+
+% InfoNCE\cite{oord2018representation}（Information Noise Contrastive Estimation）损失函数是一种常用的对比学习的损失函数，广泛应用于无监督学习任务中，尤其是在自监督学习和表示学习领域。InfoNCE 的主要目标是最大化正样本之间的相似度，同时最小化正样本与负样本之间的相似度，旨在区分正样本对和负样本对，从而使模型学习到更加鲁棒和有意义的表示。
+
+% InfoNCE 损失的公式为：
+% \begin{equation}
+% \mathcal{L}_{\text{InfoNCE}} = -\frac{1}{N} \sum_{i=1}^{N} \log \frac{\exp(\text{sim}(z_i, z_j) / \tau)}{\sum_{k=1}^{K} \exp(\text{sim}(z_i, z_k) / \tau)}
+% \end{equation}
+
+% \noindent 其中$z_i,z_j$为正样本对，这里指节点和节点增强后的正样本，$z_k$为负样本，$sim()$用来计算样本之间的相似度，可以使用点积或余弦相似度来计算。$\tau$：温度参数，用于控制相似度的尺度。较低的温度会使得模型对相似度的区分更敏感，较高的温度则会使得模型更为宽容。$N$：样本对的总数，$K$：负样本的个数。
+
+
+% \subsection{下游任务与微调策略}
+% 模型在预训练后已经能够学习到不同节点的潜在结构和特性，但为了进一步提高在具体下游任务（如变量选择、节点选择）上的性能，还需要进行有监督的微调。
+
+% 在微调准备阶段，需要针对变量选择和节点选择任务准备有标签的数据集。变量选择的数据通过使用强分支方法求解MILP问题获取，而节点选择任务所需数据需要先获取MILP问题的最优解，依据其最优解进行节点选择以保证每次选择到包含最优解的节点。
+
+% 在微调之前，需要为不同的下游任务设计并添加相应的头网络。微调过程中，采用以下两种策略：（1）冻结预训练模型的所有参数，仅训练头网络的参数，以保持预训练模型原有的特征提取能力；（2）部分冻结预训练模型的参数，通常是冻结前几层参数，因为这些层更擅长提取通用的基础特征。未冻结的部分与头网络一同进行训练，以适应具体的下游任务需求。
+
+% \subsection{实验设计与性能评估}
+
+% 实验设置分为两个部分，分别是变量选择任务和节点选择任务。对比学习预训练的数据量与对比算法中的数据量保持相同，并分别使用1\%，5\%和10\%带有标签的数据针对相应下游任务进行微调，具体实验设置如下：
+
+% \subsubsection{变量选择任务}
+
+% 参考Gasse\cite{gasse2019exact} 中的实验设置，实验在以下四个目标问题上进行：Set Cover\cite{balas1980set}，Combinatorial Auction\cite{leyton2000towards}，Capacitated Facility Location\cite{cornuejols1991comparison}和Maximum Independent Set\cite{bergman2016decision}。每一类问题有三种问题规模分别是简单，一般和困难。模型在简单规模问题上进行训练，在一般和困难规模问题上进行测试。
+
+% 对比算法为Gasse\cite{gasse2019exact}中模仿学习方法，两种手工设计的分支方法：可靠性伪成本分支\cite{achterberg2005branching}（Reliability Pseudocost Branching）和强分支,此外还包括开源求解器 SCIP。
+
+% 衡量标准与Gasse\cite{gasse2019exact} 中相同，包括问题的解决时间，B\&B树中节点数目以及在解决时间上算法在在解决相同问题时获胜的次数。
+
+
+% \subsubsection{节点选择任务}
+
+% 与变量选择任务中的目标问题略有不同，使用Fixed Charge Multicommodity Network Flow\cite{hewitt2010combining}，Maximum Satisfiability\cite{bejar2009generating}和Generalized Independent Set\cite{chmiela2021learning}作为实验问题。
+
+% 对比算法为默认的SCIP节点选择方法，一种手工设计的节点选择方法（Estimate），预知最优解情况下的节点选择方法（Oracle），和目前SOTA的深度学习节点选择方法\cite{labassi2022learning}。
+
+% 衡量标准为问题的解决时间和B\&B树中节点的数目。
+
+
+\section{混合整数规划问题的分支定界算法基础模型研究}
+本研究提出一种面向混合整数线性规划的通用基础模型（Foundation Model），通过结合图神经网络与决策Transformer（Decision Transformer, DT）框架，实现对分支定界树搜索过程的端到端全局建模。与传统方法仅关注B\&B算法中的单个任务（如变量选择或节点选择）不同，本研究的核心创新在于：将整个B\&B树的拓扑结构、历史决策轨迹和问题特征作为统一输入，由神经网络自主完成所有关键决策，从而突破传统方法依赖人工设计启发式规则的局限性。
+
+\subsection{研究方案}
+
+
+\subsubsection{分支定界树的序列表征}
+本研究提出一种全新的分支定界树序列表征方法，通过将B\&B树的拓扑结构、搜索轨迹和问题特征统一编码为混合类型序列，作为决策Transformer（DT）的输入。具体而言，首先从SCIP求解日志中提取完整的搜索轨迹数据，涵盖原始MILP问题的状态信息（如约束矩阵、变量特征）、决策信息（如节点选择、变量选择等关键操作），以及决策后的奖励信号（如发现最优解、全局下界提升等）。在此基础上，通过图神经网络提取原始MILP问题的特征作为序列表征的第一个token；同时，每个通过分支操作产生的节点通过MLP嵌入模块生成特征向量作为节点token，每一次的分支操作（即分支定界树的边）同样通过MIP生气嵌入特征作为token。至此，整颗分支定界树包括根节点、节点、边都转化为token作为序列表征的一部分。进一步地，我们将分支定界算法中的奖励信息同样通过嵌入的方式加入到序列表征中，序列表征的全部token见表~\ref{tab:token_types}，序列的组合方式见式~\ref{eq:bnb_seq}。通过这种方式，B\&B树的全局信息被转化为结构化的混合类型序列，为后续的端到端决策建模提供了统一的输入框架。
+\begin{table}[htbp]
+    \centering
+    \caption{token类型定义与嵌入方式}
+    \label{tab:token_types}
+    \begin{tabular}{|c|c|c|}
+        \hline
+        \textbf{Token类型} & \textbf{类型标识} & \textbf{嵌入方式} \\
+        \hline
+        状态（State）       & 1                & GNN \\
+        节点（Node）        & 2                & MLP \\
+        奖励（Reward）      & 3                & MLP \\
+        分支变量（Branch Var）& 4                & MLP \\
+        节点选择（Node Selection）& 5              & MLP \\
+        \hline
+    \end{tabular}
+\end{table}
+\begin{equation}
+\begin{split}
+\mathrm{Sequence} = [\mathrm{State}, &\mathrm{Reward}, \mathrm{BranchVar}_1, \mathrm{Node}_2, \\
+                   &\quad \mathrm{Node}_3, \mathrm{Reward}, \mathrm{Node\ selection}_1, \mathrm{Reward}, \cdots]
+\end{split}
+\label{eq:bnb_seq}
+\end{equation}
+
+\subsubsection{Decision Transformer训练方式}  
+在完成B\&B树的序列表征后，Decision Transformer的训练目标是通过端到端的学习过程，使模型能够自主完成分支定界中的决策任务如节点选择、变量选择等。  
+
+首先，在数据准备阶段，输入序列包含状态、节点、奖励、分支变量等token，并通过任务标注明确每个操作对应的决策任务（如节点选择、变量选择）。例如，在节点选择任务中，模型需根据当前可选的节点索引预测专家标注的优先级；在变量选择任务中，则需结合候选变量的得分进行决策。同时，动态奖励信号（如发现最优解、全局下界提升）被显式嵌入到序列中，为模型提供强化学习的监督信号，辅助模型学习到决策动作带来的长期收益，奖励函数的具体设计见表\ref{tab:reward}。  
+\begin{table}[htbp]
+    \centering
+    \caption{动态奖励函数设计}
+    \label{tab:reward}
+    \begin{tabular}{|c|c|}
+        \hline
+        \textbf{操作类型} & \textbf{奖励值} \\
+        \hline
+        分支         & -1     \\
+        节点选择         & -1     \\
+        发现可行解       & +100   \\
+        剪枝       & +10    \\
+        \hline
+    \end{tabular}
+\end{table}
+
+在此基础上，模型采用多任务联合训练策略。通过共享的Transformer编码器提取序列特征后，任务特定的输出头（如节点选择头、变量选择头）分别处理不同任务。节点选择任务采用交叉熵损失，鼓励模型学习专家标注的节点优先级；变量选择任务则支持软标签（KL散度）和硬标签（交叉熵）。使用联合损失函数 $\mathcal{L}_{\text{total}} = \alpha \cdot \mathcal{L}_{\text{select}} + \beta \cdot \mathcal{L}_{\text{branch}}$ 动态调整任务权重（$\alpha, \beta$），以适应不同问题的特性。  
+
+为了确保模型学习时序一致的搜索路径，因果掩码机制被应用于Transformer架构中，强制模型在生成决策时仅依赖历史信息，避免未来信息泄露。此外，位置编码和序列拼接逻辑进一步约束模型学习搜索路径的时序依赖关系（如节点扩展后紧随奖励反馈）。   
+
+训练过程中，采用分布式训练框架（DeepSpeed）进行大规模并行处理，支持长序列的显存优化。为缓解长序列训练的显存瓶颈，轨迹被动态截断以保留核心决策片段，同时通过课程学习（Curriculum Learning）逐步增加序列复杂度。验证集上的综合性能（如求解时间、节点数）被用作早停机制的指标，防止过拟合并选择最优模型。  
+
+最终，模型通过端到端训练流程实现决策能力的提升：输入序列经Transformer编码器生成上下文感知的特征表示，任务头网络输出节点优先级和变量得分，与专家决策对比计算损失。动态任务权重调整机制（如根据验证集表现自动调整$\alpha, \beta$）进一步优化多任务协同效果。通过上述策略，模型能够从B\&B树的全局信息中学习到高效的搜索策略，无需依赖人工设计的启发式规则，实现对复杂MILP问题的端到端求解。
+ 
+
+\subsection{实验设计}  
+本研究的实验设计围绕验证所提出方法在求解效率与质量上的潜力展开，重点对比SCIP求解器的性能表现，并通过预训练与微调策略探索模型的优化空间。  
+
+\subsubsection{数据集与问题实例}  
+实验数据集包含两类问题实例：  
+第一类为训练集，基于GISP、FCMCNF、MAXSAT 生成10000个MILP实例，覆盖不同规模与约束复杂度，用于预训练模型的基本能力。第二类为测试集，扩展至MIPLIB，TSP等异构MILP问题，用于评估模型的跨任务泛化能力。所有数据均从SCIP求解日志中提取完整搜索轨迹，构建包含状态、决策、奖励的混合类型序列，并通过动态截断策略优化长序列处理。  
+
+\subsubsection{对比基线方法}  
+本研究以SCIP求解器作为唯一对比基线，其默认配置（伪成本分支+最佳优先搜索）代表当前工业级求解器的典型性能。通过对比模型在训练后与微调后的表现，验证其逐步逼近并超越SCIP的可能性。  
+
+\subsubsection{评估指标}  
+实验从求解效率与决策质量两个维度衡量模型性能：  
+\begin{itemize}
+    \item 求解时间（Time）：记录模型完成求解所需的平均时间，直接反映算法的运行效率。  
+    \item 分支定界树节点数（Nodes）：统计模型生成的分支定界树的规模，体现模型做出的决策质量。   
+\end{itemize}
+
+ 
+
 
